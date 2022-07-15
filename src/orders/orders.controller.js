@@ -60,7 +60,7 @@ function validateDeliveryToProperties(req, res, next) {
   }
   
   //Checks if order exists
-  function orderExists(req, res, next) {
+  function validateOrderId(req, res, next) {
     const orderId = req.params.orderId;
     res.locals.orderId = orderId;
     const foundOrder = orders.find((order) => order.id === orderId);
@@ -79,71 +79,85 @@ function validateDeliveryToProperties(req, res, next) {
     res.json({ data: res.locals.order });
   }
   
-  //Updates existing order
-  function update(req, res) {
-    const { data: { id, deliverTo, mobileNumber, status, dishes } = {} } =
-      req.body;
-    res.locals.order = {
-      deliverTo: deliverTo,
-      mobileNumber: mobileNumber,
-      status: status,
-      dishes: dishes,
-    };
-  
-    if ((id && id === res.locals.orderId) || !id) {
-      res.locals.order.id = res.locals.orderId;
-      return res.json({ data: res.locals.order });
-    } else {
-      return res.status(400).json({
-        error: `Order id does not match route id. Order: ${id}, Route: ${res.locals.orderId}`,
-      });
-    }
+  //Keeps orderId from being overwritten
+function validateOrderBodyId(req, res, next) {
+  const { orderId } = req.params;
+  const { data: { id } = {} } = req.body;
+
+  if (!id || id === orderId) {
+    res.locals.orderId = orderId;
+    return next();
   }
-  
-  //Makes sure order is valid
-  function statusValid(req, res, next) {
-    const { data: { status } = {} } = req.body;
-    let errorMessage;
-  
-    if (
-      !status ||
-      (status !== "pending" &&
-        status !== "preparing" &&
-        status !== "out-for-delivery")
-    )
+
+  next({
+    status: 400,
+    message: `Order id does not match route id. Order: ${id}, Route: ${orderId}`
+  });
+}
+
+//Makes sure order is valid
+function statusValid(req, res, next) {
+  const { data: { status } = {} } = req.body;
+  let errorMessage;
+
+  if (
+    !status ||
+    (status !== "pending" &&
+      status !== "preparing" &&
+      status !== "out-for-delivery")
+  )
     errorMessage =
-        "Order must have a status of pending, preparing, out-for-delivery, delivered";
-    else if (status === "delivered")
+      "Order must have a status of pending, preparing, out-for-delivery, delivered";
+  else if (status === "delivered")
     errorMessage = "A delivered order cannot be changed";
-  
-    if (errorMessage) {
-      return next({
-        status: 400,
-        message: errorMessage,
-      });
-    }
-  
-    next();
+
+  if (errorMessage) {
+    return next({
+      status: 400,
+      message: errorMessage
+    });
   }
-   
-  //Deletes an order
-  function destroy(req, res) {
-    const index = orders.indexOf(res.locals.order);
-  
-    if (res.locals.order.status !== "pending") {
-      return res.status(400).json({
-        error: "An order cannot be deleted unless it is pending",
-      });
-    } else {
-      orders.splice(index, 1);
-      res.sendStatus(204);
-    }
-  }
-  
-  module.exports = {
-    create: [validateDeliveryToProperties, create],
-    read: [orderExists, read],
-    update: [orderExists, validateDeliveryToProperties, statusValid, update],
-    delete: [orderExists, destroy],
-    list,
+
+  next();
+}
+
+//Updates existing order
+function update(req, res) {
+  const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
+  res.locals.order = {
+    id: res.locals.orderId,
+    deliverTo: deliverTo,
+    mobileNumber: mobileNumber,
+    status: status,
+    dishes: dishes
   };
+  res.json({ data: res.locals.order });
+}
+
+//Deletes an order
+function destroy(req, res) {
+  const index = orders.indexOf(res.locals.order);
+
+  if (res.locals.order.status !== "pending") {
+    return res.status(400).json({
+      error: "An order cannot be deleted unless it is pending"
+    });
+  } else {
+    orders.splice(index, 1);
+    res.sendStatus(204);
+  }
+}
+
+module.exports = {
+  create: [validateDeliveryToProperties, create],
+  read: [validateOrderId, read],
+  update: [
+    validateOrderId,
+    validateOrderBodyId,
+    validateDeliveryToProperties,
+    statusValid,
+    update
+  ],
+  delete: [validateOrderId, destroy],
+  list
+};
