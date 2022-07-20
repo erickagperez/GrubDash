@@ -10,89 +10,92 @@ const nextId = require("../utils/nextId");
 
 //Lists existing orders
 function list(req, res) {
-    res.json({ data: orders });
-  }
+  res.json({ data: orders });
+}
 
 function validateDeliveryToProperties(req, res, next) {
-    const { data: { deliverTo, mobileNumber, dishes } = {} } = req.body;
-    let errorMessage;
-  
-    if (!deliverTo || deliverTo === "")
+  const { data: { deliverTo, mobileNumber, dishes } = {} } = req.body;
+  let errorMessage;
+
+  if (!deliverTo || deliverTo === "")
     errorMessage = "Order must include a deliverTo";
-    else if (!mobileNumber || mobileNumber === "")
+  else if (!mobileNumber || mobileNumber === "")
     errorMessage = "Order must include a mobileNumber";
-    else if (!dishes) errorMessage = "Order must include a dish";
-    else if (!Array.isArray(dishes) || dishes.length === 0)
+  else if (!dishes) errorMessage = "Order must include a dish";
+  else if (!Array.isArray(dishes) || dishes.length === 0)
     errorMessage = "Order must include at least one dish";
-    else {
-      for (let i = 0; i < dishes.length; i++) {
-        if (
-          !dishes[i].quantity ||
-          dishes[i].quantity <= 0 ||
-          !Number.isInteger(dishes[i].quantity)
-        )
+  else {
+    for (let i = 0; i < dishes.length; i++) {
+      if (
+        !dishes[i].quantity ||
+        dishes[i].quantity <= 0 ||
+        !Number.isInteger(dishes[i].quantity)
+      )
         errorMessage = `Dish ${i} must have a quantity that is an integer greater than 0`;
-      }
     }
-  
-    if (errorMessage) {
-      return next({
-        status: 400,
-        message: errorMessage,
-      });
-    }
-  
-    next();
   }
-  
-  //Creates new order
-  function create(req, res) {
-    const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
-    const newOrder = {
-      id: nextId(),
-      deliverTo: deliverTo,
-      mobileNumber: mobileNumber,
-      status: status ? status: "pending",
-      dishes: dishes,
-    };
-    orders.push(newOrder);
-    res.status(201).json({ data: newOrder });
-  }
-  
-  //Checks if order exists
-  function validateOrderId(req, res, next) {
-    const orderId = req.params.orderId;
-    res.locals.orderId = orderId;
-    const foundOrder = orders.find((order) => order.id === orderId);
-    if (foundOrder) {
-      res.locals.order = foundOrder;
-      return next();
-    }
-    next({
-      status: 404,
-      message: `Order does not exist: ${req.params.orderId}`,
+
+  if (errorMessage) {
+    return next({
+      status: 400,
+      message: errorMessage,
     });
   }
-  
-  //Reads order requested
-  function read(req, res) {
-    res.json({ data: res.locals.order });
+
+  next();
+}
+
+//Creates new order
+function create(req, res) {
+  const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
+  const newOrder = {
+    id: nextId(),
+    deliverTo: deliverTo,
+    mobileNumber: mobileNumber,
+    status: status ? status : "pending",
+    dishes: dishes,
+  };
+  orders.push(newOrder);
+  res.status(201).json({ data: newOrder });
+}
+
+//Checks if order exists
+function validateOrderId(req, res, next) {
+  const orderId = req.params.orderId;
+  res.locals.orderId = orderId;
+  const foundOrder = orders.find((order) => order.id === orderId);
+  if (foundOrder) {
+    res.locals.order = foundOrder;
+    return next();
   }
-  
-  //Keeps orderId from being overwritten
+  next({
+    status: 404,
+    message: `Order does not exist: ${req.params.orderId}`,
+  });
+}
+
+//Reads order requested
+function read(req, res) {
+  res.json({ data: res.locals.order });
+}
+
+//Keeps orderId from being overwritten
 function validateOrderBodyId(req, res, next) {
   const { orderId } = req.params;
   const { data: { id } = {} } = req.body;
 
-  if (!id || id === orderId) {
-    res.locals.orderId = orderId;
-    return next();
+  if (!id) {
+    return next ();
+  } else {
+    if (id === orderId) {
+      return next();
+    } else {
+      next({
+        status: 400,
+        message: `Order id does not match route id. Order: ${id}, Route: ${orderId}`,
+      });
+    }
   }
-
-  next({
-    status: 400,
-    message: `Order id does not match route id. Order: ${id}, Route: ${orderId}`
-  });
 }
 
 //Makes sure order is valid
@@ -114,7 +117,7 @@ function statusValid(req, res, next) {
   if (errorMessage) {
     return next({
       status: 400,
-      message: errorMessage
+      message: errorMessage,
     });
   }
 
@@ -129,7 +132,7 @@ function update(req, res) {
     deliverTo: deliverTo,
     mobileNumber: mobileNumber,
     status: status,
-    dishes: dishes
+    dishes: dishes,
   };
   res.json({ data: res.locals.order });
 }
@@ -140,7 +143,7 @@ function destroy(req, res) {
 
   if (res.locals.order.status !== "pending") {
     return res.status(400).json({
-      error: "An order cannot be deleted unless it is pending"
+      error: "An order cannot be deleted unless it is pending",
     });
   } else {
     orders.splice(index, 1);
@@ -156,8 +159,8 @@ module.exports = {
     validateOrderBodyId,
     validateDeliveryToProperties,
     statusValid,
-    update
+    update,
   ],
   delete: [validateOrderId, destroy],
-  list
+  list,
 };
