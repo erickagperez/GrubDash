@@ -73,7 +73,7 @@ function validateDishId(req, res, next) {
 function updateDish(req, res) {
   const { data: { name, description, price, image_url } = {} } = req.body;
   res.locals.dish = {
-    id: res.locals.dishId,
+    id: res.locals.dish.id,
     name: name,
     description: description,
     price: price,

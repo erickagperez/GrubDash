@@ -128,7 +128,7 @@ function statusValid(req, res, next) {
 function update(req, res) {
   const { data: { deliverTo, mobileNumber, status, dishes } = {} } = req.body;
   res.locals.order = {
-    id: res.locals.orderId,
+    id: res.locals.order.id,
     deliverTo: deliverTo,
     mobileNumber: mobileNumber,
     status: status,
